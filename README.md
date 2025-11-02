@@ -52,8 +52,10 @@ module.exports = {
 This will build the project as a standalone app inside the Docker image.
 
 ## Install Tailwind CSS using PostCSS
+- Refer the official link: [Install Tailwind](https://tailwindcss.com/docs/installation/using-postcss)
 
-### Refer the official link: [Install Tailwind](https://tailwindcss.com/docs/installation/using-postcss)
+## Set Up Jest for Unit Tests
+- Refer the official link: [Install Jest](https://jestjs.io/docs/getting-started)
 
 
 ## Deploying to Google Cloud Run
