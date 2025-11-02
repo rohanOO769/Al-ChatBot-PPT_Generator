@@ -9,7 +9,11 @@ export default function Home() {
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
+
       <main className={styles.main}>
+        <h1 class="text-3xl font-bold text-red-500 underline">
+          Hello world!
+        </h1>
         <h1 className={styles.title}>
           Welcome to <a href="https://nextjs.org">Next.js</a> on Docker!
         </h1>

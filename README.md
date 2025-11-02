@@ -51,6 +51,11 @@ module.exports = {
 
 This will build the project as a standalone app inside the Docker image.
 
+## Install Tailwind CSS using PostCSS
+
+### Refer the official link: [Install Tailwind](https://tailwindcss.com/docs/installation/using-postcss)
+
+
 ## Deploying to Google Cloud Run
 
 1. Install the [Google Cloud SDK](https://cloud.google.com/sdk/docs/install) so you can use `gcloud` on the command line.
