@@ -1,7 +1,7 @@
 // app/components/ChatSlideBuilder.js
 
-import { useState } from 'react';
-import generatePPT from '../lib/generatePPT';
+import { useState } from "react";
+import generatePPT from "../lib/generatePPT";
 
 export default function ChatSlideBuilder() {
   const [messages, setMessages] = useState([]);
@@ -33,9 +33,13 @@ export default function ChatSlideBuilder() {
         setMessages((m) => [...m, { role: "assistant", text: "Error: " + err }]);
       }
     } catch (err) {
-      setMessages((m) => [...m, { role: "assistant", text: "Network error: " + err.message }]);
+      setMessages((m) => [
+        ...m,
+        { role: "assistant", text: "Network error: " + err.message },
+      ]);
     } finally {
       setLoading(false);
+      // Keep the prompt if you want to quickly retry; otherwise clear:
       setPrompt("");
     }
   }
@@ -52,11 +56,19 @@ export default function ChatSlideBuilder() {
             background: "#fff",
           }}
         >
-          {messages.length === 0 && <div><em>No messages yet. Send a prompt.</em></div>}
+          {messages.length === 0 && (
+            <div>
+              <em>No messages yet. Send a prompt.</em>
+            </div>
+          )}
           {messages.map((m, i) => (
             <div key={i} style={{ marginBottom: 12 }}>
               <b>{m.role}</b>: {m.text}
-              {m.json && <pre style={{ background: "#fafafa", padding: 8 }}>{JSON.stringify(m.json, null, 2)}</pre>}
+              {m.json && (
+                <pre style={{ background: "#fafafa", padding: 8 }}>
+                  {JSON.stringify(m.json, null, 2)}
+                </pre>
+              )}
             </div>
           ))}
         </div>
@@ -86,13 +98,23 @@ export default function ChatSlideBuilder() {
 
       <div style={{ width: 420 }}>
         <h3>Slide preview</h3>
-        <div style={{ border: "1px solid #ddd", padding: 10, minHeight: 300, background: "#fff" }}>
+        <div
+          style={{
+            border: "1px solid #ddd",
+            padding: 10,
+            minHeight: 300,
+            background: "#fff",
+          }}
+        >
           {slideJson ? (
             <>
               <h4 style={{ marginTop: 0 }}>{slideJson.title || "Untitled"}</h4>
               {Array.isArray(slideJson.slides) && slideJson.slides.length ? (
                 slideJson.slides.map((s) => (
-                  <div key={s.id || s.title} style={{ border: "1px solid #ccc", margin: 8, padding: 8 }}>
+                  <div
+                    key={s.id || s.title}
+                    style={{ border: "1px solid #ccc", margin: 8, padding: 8 }}
+                  >
                     <h4 style={{ margin: "4px 0" }}>{s.title}</h4>
                     {s.bullets && (
                       <ul>

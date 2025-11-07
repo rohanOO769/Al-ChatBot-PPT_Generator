@@ -19,7 +19,6 @@ export default function generatePPT(slideJson) {
       slide.addText(s.title, { x: 0.5, y: 0.3, fontSize: 24, bold: true });
     }
     if (s.bullets && s.bullets.length) {
-      // join bullets into a single text block
       slide.addText(s.bullets.map((b) => "• " + b).join("\n"), {
         x: 0.5,
         y: 1.2,
@@ -31,7 +30,6 @@ export default function generatePPT(slideJson) {
       try {
         slide.addImage({ x: 5.5, y: 1.2, w: 3.5, h: 3, src: s.image.url });
       } catch (err) {
-        // image could be blocked by CORS — ignore and continue
         console.warn("Failed to add image:", err);
       }
     }
@@ -40,8 +38,11 @@ export default function generatePPT(slideJson) {
     }
   }
 
-  // browser download
-  pres.writeFile({
-    fileName: `${(slideJson.title || "presentation").replace(/\s+/g, "_")}.pptx`,
+  const fileName = `${(slideJson.title || "presentation")
+    .replace(/\s+/g, "_")
+    .slice(0, 80)}.pptx`;
+  pres.writeFile({ fileName }).catch((err) => {
+    console.error("Failed to save PPTX:", err);
+    alert("Failed to generate PPTX: " + err.message);
   });
 }
