@@ -1,17 +1,16 @@
-// app/components/lib/generatePPT.js
+  // app/lib/generatePPT.js
 
 import PptxGenJS from "pptxgenjs";
 
-/**
- * Best-effort: fetch a remote image and return a Data URL for embedding.
- * If CORS blocks it, we throw so caller can fall back to `path`.
- */
+async function getPptxGen() {
+  const mod = await import("pptxgenjs");
+  return mod.default || mod;
+}
+
 async function fetchAsDataUrl(url) {
   const resp = await fetch(url, { mode: "cors" });
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
   const blob = await resp.blob();
-
-  // Read as base64
   const toDataURL = (blob) =>
     new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -19,8 +18,7 @@ async function fetchAsDataUrl(url) {
       reader.onerror = reject;
       reader.readAsDataURL(blob);
     });
-
-  return await toDataURL(blob); // e.g., "data:image/jpeg;base64,...."
+  return await toDataURL(blob);
 }
 
 export default async function generatePPT(slideJson) {
@@ -29,7 +27,9 @@ export default async function generatePPT(slideJson) {
     return;
   }
 
+  const PptxGenJS = await getPptxGen();
   const pres = new PptxGenJS();
+
   pres.author = slideJson?.meta?.author || "AI";
   pres.title = slideJson?.title || "AI Presentation";
 
@@ -42,37 +42,35 @@ export default async function generatePPT(slideJson) {
 
     if (s.bullets && s.bullets.length) {
       slide.addText(s.bullets.map((b) => "• " + b).join("\n"), {
-        x: 0.5,
-        y: 1.2,
-        fontSize: 18,
-        bullet: false,
+        x: 0.5, y: 1.2, fontSize: 18, bullet: false,
       });
     }
 
-    // ---- IMAGE FIX ----
     if (s.image?.url) {
       const imgOpts = { x: 5.5, y: 1.2, w: 3.5, h: 3 };
-
-      // First, try embedding as base64 (most reliable if CORS allows fetch)
       let added = false;
       try {
-        const dataUrl = await fetchAsDataUrl(s.image.url);
-        slide.addImage({ ...imgOpts, data: dataUrl }); // <-- CORRECT KEY
-        added = true;
+        // If it's a data URL or accessible URL, embedding will work
+        if (s.image.url.startsWith("data:")) {
+          slide.addImage({ ...imgOpts, data: s.image.url });
+          added = true;
+        } else {
+          // try fetching as data URL
+          const dataUrl = await fetchAsDataUrl(s.image.url);
+          slide.addImage({ ...imgOpts, data: dataUrl });
+          added = true;
+        }
       } catch (e) {
-        console.warn("Base64 embed failed (CORS or fetch issue). Falling back to path:", e?.message || e);
+        console.warn("Base64 embed failed, falling back to path:", e.message || e);
       }
-
-      // Fallback: let pptxgen load from URL directly (may still fail due to CORS)
       if (!added) {
         try {
-          slide.addImage({ ...imgOpts, path: s.image.url }); // <-- CORRECT KEY
+          slide.addImage({ ...imgOpts, path: s.image.url });
         } catch (err) {
           console.warn("Failed to add image via path:", err);
         }
       }
     }
-    // ---- END IMAGE FIX ----
 
     if (s.notes) {
       slide.addNotes(s.notes);
