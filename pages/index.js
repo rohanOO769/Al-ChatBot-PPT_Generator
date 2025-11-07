@@ -18,7 +18,7 @@ export default function Home() {
         </h1>
 
         <section style={{ width: "100%", marginTop: 24 }}>
-          <ChatSlideBuilder />
+          <ChatSlideBuilder userName="Rohan" />
         </section>
       </main>
     </div>
