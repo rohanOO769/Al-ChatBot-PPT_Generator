@@ -29,25 +29,68 @@ export default function ChatSlideBuilder({ userName = "Rohan" }) {
   async function sendPrompt() {
     const value = prompt.trim();
     if (!value || loading) return;
-
     setMessages((m) => [...m, { role: "user", text: value }]);
     setLoading(true);
     try {
+      // include existing slide JSON so model can edit it
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: value }),
+        body: JSON.stringify({ prompt: value, existing: slideJson || null }),
       });
       const body = await res.json();
 
       if (res.ok && body?.data) {
-        setSlideJson(body.data);
+        // handle three possible shapes:
+        // 1) full updated JSON (body.data.slides === Array)
+        // 2) patch object (body.data.patch)
+        // 3) model returned "data" already valid
+        const incoming = body.data;
+
+        const merged = (() => {
+          if (!slideJson) {
+            // no existing, accept incoming as full JSON
+            return incoming;
+          }
+          // If incoming is full JSON (has slides array), replace with it
+          if (Array.isArray(incoming?.slides)) return incoming;
+
+          // If incoming has a patch, merge by slide.id
+          if (incoming?.patch) {
+            const result = JSON.parse(JSON.stringify(slideJson));
+            const p = incoming.patch;
+            if (p.title) result.title = p.title;
+            if (p.meta) result.meta = { ...(result.meta || {}), ...p.meta };
+            if (Array.isArray(p.slides)) {
+              p.slides.forEach((s) => {
+                if (!s.id) {
+                  // fallback: append if no id
+                  result.slides.push(s);
+                  return;
+                }
+                const idx = result.slides.findIndex((x) => x.id === s.id);
+                if (idx >= 0) result.slides[idx] = { ...result.slides[idx], ...s };
+                else result.slides.push(s);
+              });
+            }
+            return result;
+          }
+
+          // last-resort: if incoming is something weird, just try to return it if it looks like slides
+          if (incoming && Array.isArray(incoming?.slides)) return incoming;
+
+          // fallback: keep existing, but add a note to console
+          console.warn("Model returned unknown shape, keeping existing slides.", incoming);
+          return slideJson;
+        })();
+
+        setSlideJson(merged);
+
         setMessages((m) => [
           ...m,
-          { role: "assistant", type: "thinking", title: "Thoughts", text: "Synthesizing sources and structuring slides." },
-          { role: "assistant", type: "status", icon: "search", text: `Searching the web`, sub: `"${value.slice(0, 64)}${value.length > 64 ? "…" : ""}"` },
-          { role: "assistant", type: "status", icon: "read", text: "Reading website", sub: body?.data?.meta?.source || "Model references" },
-          { role: "assistant", text: `${Array.isArray(body.data.slides) ? body.data.slides.length : 0} slides generated`, type: "done" }
+          { role: "assistant", type: "thinking", title: "Thoughts", text: "Synthesizing and merging changes." },
+          { role: "assistant", type: "status", icon: "search", text: `Applied changes to presentation.` },
+          { role: "assistant", text: `${Array.isArray(merged.slides) ? merged.slides.length : 0} slides now`, type: "done" },
         ]);
       } else {
         const err = body?.error || body?.outputText || "Unknown error";

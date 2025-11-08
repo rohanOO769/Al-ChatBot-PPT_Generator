@@ -2,8 +2,7 @@
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).end();
-
-  const { prompt } = req.body || {};
+  const { prompt, existing } = req.body || {}; // <-- accept existing slide JSON
   if (!prompt || typeof prompt !== "string") {
     return res.status(400).json({ error: "Missing prompt" });
   }
@@ -11,13 +10,13 @@ export default async function handler(req, res) {
   const API_KEY = process.env.GENERATIVE_API_KEY;
   const MODEL = process.env.GEN_MODEL || "gemini-2.5-pro";
   const MAX_TOKENS = Number(process.env.GEN_MAX_OUTPUT_TOKENS || 1200);
-
   if (!API_KEY) {
     return res.status(500).json({ error: "No API key configured on server" });
   }
 
+  // Strong system instruction: always output JSON only. If "existing" provided, edit it.
   const systemInstruction = `
-You are a slide-generation assistant. ONLY produce well-formed JSON matching this exact schema:
+You are a slide-generation assistant. ONLY output a single JSON object (no prose) matching this schema:
 {
   "title": string,
   "slides": [
@@ -27,28 +26,32 @@ You are a slide-generation assistant. ONLY produce well-formed JSON matching thi
       "title": string,
       "bullets": [string],
       "image": { "url": string|null, "alt": string|null },
-      "notes": string
+      "notes": string|null
     }
   ],
-  "meta": { "author": string, "createdAt": string }
+  "meta": { "author": string|null, "createdAt": string|null }
 }
-No commentary or text outside the JSON. If uncertain, output a minimal valid JSON per the schema.
+
+IMPORTANT:
+- If the user provided an "existing" presentation JSON, you MUST edit that existing JSON and return the full updated JSON. Do not invent a completely unrelated presentation.
+- If the user asked for small changes you may either:
+  1) Return the entire updated JSON (PREFERRED), or
+  2) Return an object with a top-level "patch" key: { "patch": { "slides": [ ... ], "title": "...", "meta": {...} } } where each slide in patch.slides contains an "id". The client will merge the patch into the existing JSON by matching slide.id.
+- The response must be valid JSON and conform to the schema. If uncertain, return a minimal valid JSON (title + slides:[]).
+- Do NOT output any text outside the JSON. No commentary, no code fences.
 `;
 
-  // Build Gemini generateContent request
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
     MODEL
   )}:generateContent?key=${API_KEY}`;
 
+  // include `existing` context for the model (stringified)
   const body = {
-    system_instruction: {
-      parts: [{ text: systemInstruction }],
-    },
+    system_instruction: { parts: [{ text: systemInstruction }] },
     contents: [
-      {
-        role: "user",
-        parts: [{ text: prompt }],
-      },
+      { role: "user", parts: [{ text: prompt }] },
+      // give the existing JSON as machine-readable context (if present)
+      ...(existing ? [{ role: "user", parts: [{ text: `EXISTING_PRESENTATION_JSON:${JSON.stringify(existing)}` }] }] : []),
     ],
     generationConfig: {
       temperature: 0.2,

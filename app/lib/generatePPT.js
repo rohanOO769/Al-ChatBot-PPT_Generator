@@ -1,7 +1,5 @@
   // app/lib/generatePPT.js
 
-import PptxGenJS from "pptxgenjs";
-
 async function getPptxGen() {
   const mod = await import("pptxgenjs");
   return mod.default || mod;
